@@ -1,26 +1,24 @@
 {
-  "name": "mcp-discord",
-  "version": "1.1.0",
-  "main": "index.js",
+  "name": "mcp-discord-readonly",
+  "version": "1.0.0",
+  "main": "build/index.js",
   "type": "module",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1",
     "build": "tsc",
-    "start": "node dist/index.js",
-    "dev": "node --loader ts-node/esm src/index.ts"
+    "start": "node build/index.js",
+    "dev": "node --loader ts-node/esm src/index.ts",
+    "audit": "npm audit --audit-level=moderate"
   },
-  "author": "",
   "license": "MIT",
-  "description": "",
+  "description": "Read-only Discord MCP server for content analysis. Hardened fork of mcp-discord with allow-listing, destructive tools removed, and token-logging removed.",
   "devDependencies": {
-    "@modelcontextprotocol/sdk": "^1.8.0",
     "@types/node": "^20.17.26",
     "ts-node": "^10.9.2",
     "typescript": "^5.8.2"
   },
   "dependencies": {
-    "discord.js": "^14.18.0",
-    "dotenv": "^16.4.7",
+    "@modelcontextprotocol/sdk": "^1.25.2",
+    "discord.js": "^14.22.1",
     "zod": "^3.24.2"
   }
 }

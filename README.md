@@ -1,176 +1,116 @@
-# MCP-Discord
-[![smithery badge](https://smithery.ai/badge/@barryyip0625/mcp-discord)](https://smithery.ai/server/@barryyip0625/mcp-discord) ![](https://badge.mcpx.dev?type=server 'MCP Server')
+# mcp-discord-readonly
 
-A Discord MCP (Model Context Protocol) server that enables AI assistants to interact with the Discord platform.
+A read-only Discord MCP (Model Context Protocol) server for **content analysis only**. Hardened fork of [`barryyip0625/mcp-discord`](https://github.com/barryyip0625/mcp-discord) intended for corporate use cases such as marketing/community analytics.
 
-<a href="https://glama.ai/mcp/servers/@barryyip0625/mcp-discord">
-  <img width="380" height="200" src="https://glama.ai/mcp/servers/@barryyip0625/mcp-discord/badge" alt="MCP-Discord MCP server" />
-</a>
+## What this fork changes
 
-## Overview
+The upstream project exposes 20 tools, including channel/webhook creation and deletion, message sending, and message deletion. Exposing those to an LLM that is also reading attacker-controllable Discord messages is a textbook prompt-injection blast-radius problem.
 
-MCP-Discord provides the following Discord-related functionalities:
+This fork:
 
-- Login to Discord bot
-- Get server information
-- Read/delete channel messages
-- Send messages to specified channels
-- Retrieve forum channel lists
-- Create/delete/reply to forum posts
-- Create/delete text channels
-- Add/remove message reactions
-- Create/edit/delete/use webhooks
+- **Removes all 16 destructive/write tools.** Only 4 read tools remain.
+- **Adds guild/channel allow-listing** via env vars. By default, *all* requests are denied.
+- **Removes token-logging** (raw `--config` JSON, full `process.argv`, token-length disclosure are gone).
+- **Routes all diagnostics to stderr** so they cannot corrupt the stdio MCP stream and don't leak into stdout logs.
+- **Bumps dependencies** so `npm audit` reports zero vulnerabilities at the time of writing.
+- **Drops `--config`-on-CLI support** (it caused the token-leak-via-argv). Token comes from `DISCORD_TOKEN` env var only.
+- **Removes Smithery hosted config.** Self-host only — do not ship your bot token to a third party.
+- **Adds Dependabot, CI npm audit, and CODEOWNERS.**
 
-## Table of Contents
+## Tools exposed
 
-- [Prerequisites](#prerequisites)
-- [Installation](#installation)
-- [Configuration](#configuration)
-- [Tools Documentation](#tools-documentation)
-  - [Basic Functions](#basic-functions)
-  - [Channel Management](#channel-management)
-  - [Forum Functions](#forum-functions)
-  - [Messages and Reactions](#messages-and-reactions)
-  - [Webhook Management](#webhook-management)
-- [Development](#development)
-- [License](#license)
+| Tool | Purpose |
+|---|---|
+| `discord_read_messages` | Read recent messages from an allow-listed text channel or thread (max 100). |
+| `discord_get_server_info` | Get guild metadata (name, channel counts, member count) for an allow-listed guild. |
+| `discord_get_forum_channels` | List forum channels in an allow-listed guild. |
+| `discord_get_forum_post` | Read a forum post thread and its first 10 messages. |
 
-## Prerequisites
+That's it. No `discord_send`, `discord_*_channel`, `discord_*_webhook`, `discord_delete_*`, or reaction tools.
 
-- Node.js (v16.0.0 or higher)
-- npm (v7.0.0 or higher)
-- A Discord bot with appropriate permissions
-  - Bot token (obtainable from the [Discord Developer Portal](https://discord.com/developers/applications))
-  - Message Content Intent enabled
-  - Server Members Intent enabled
-  - Presence Intent enabled
-- Permissions in your Discord server:
-  - Send Messages
-  - Create Public Threads
-  - Send Messages in Threads
-  - Manage Threads
-  - Manage Channels
-  - Add Reactions
+## Required Discord bot setup
 
-## Installation
+When creating the bot in the [Discord Developer Portal](https://discord.com/developers/applications):
 
-### Installing via Smithery
+**OAuth scopes**: `bot`
 
-To install mcp-discord for Claude Desktop automatically via [Smithery](https://smithery.ai/server/@barryyip0625/mcp-discord):
+**Bot permissions (Discord-side, the real security gate):**
+- View Channels
+- Read Message History
 
-```bash
-npx -y @smithery/cli install @barryyip0625/mcp-discord --client claude
-```
+**Do NOT grant:**
+- Send Messages
+- Manage Channels
+- Manage Webhooks
+- Manage Threads
+- Manage Messages
+- Add Reactions
+- Administrator
 
-### Manual Installation
-```bash
-# Clone the repository
-git clone https://github.com/barryyip0625/mcp-discord.git
-cd mcp-discord
+**Privileged Gateway Intents (Bot tab):** enable `Message Content Intent`. Server Members and Presence intents are not required.
 
-# Install dependencies
-npm install
-
-# Compile TypeScript
-npm run build
-```
+Even if a prompt-injection attack convinces the LLM to call a write tool, the tool no longer exists in this server. And even if a bad version were swapped in, the Discord-side permissions block the action. This is defense-in-depth.
 
 ## Configuration
 
-A Discord bot token is required for proper operation. You can provide it in two ways:
+All configuration is via environment variables.
 
-1. Environment variables:
-```
-DISCORD_TOKEN=your_discord_bot_token
+| Variable | Required | Description |
+|---|---|---|
+| `DISCORD_TOKEN` | yes | Bot token from the Discord Developer Portal. Treat like a credential. |
+| `DISCORD_ALLOWED_GUILDS` | one of these two is required | Comma-separated list of guild (server) IDs the bot may read. |
+| `DISCORD_ALLOWED_CHANNELS` | one of these two is required | Comma-separated list of channel/thread IDs. Use this for finer-grained control than guild-wide. |
+
+If **neither** allow-list is set, all reads return `Denied`. This is intentional — fail closed.
+
+A guild allow-list permits reads of any channel/thread inside that guild. A channel allow-list restricts to specific channels regardless of guild.
+
+## Install / run
+
+```bash
+git clone git@github.com:stuart-marchant/mcp-discord-readonly.git
+cd mcp-discord-readonly
+npm ci
+npm run build
 ```
 
-2. Using the `--config` parameter when launching:
-```
-node path/to/mcp-discord/build/index.js --config "{\"DISCORD_TOKEN\":\"your_discord_bot_token\"}"
-```
+### Claude Code / Claude Desktop config
 
-## Usage with Claude/Cursor
-- Claude
-  
-    ```json
-    {
-        "mcpServers": {
-            "discord": {
-                "command": "node",
-                "args": [
-                    "path/to/mcp-discord/build/index.js"
-                ],
-                "env": {
-                    "DISCORD_TOKEN": "your_discord_bot_token"
-                }
-            }
-        }
+```json
+{
+  "mcpServers": {
+    "discord": {
+      "command": "node",
+      "args": ["/absolute/path/to/mcp-discord-readonly/build/index.js"],
+      "env": {
+        "DISCORD_TOKEN": "...",
+        "DISCORD_ALLOWED_GUILDS": "123456789012345678,234567890123456789"
+      }
     }
-    ```
+  }
+}
+```
 
-- Cursor
+### Do not use a hosted MCP service for this
 
-    ```json
-    {
-        "mcpServers": {
-            "discord": {
-                "command": "cmd",
-                "args": [
-                    "/c",
-                    "node",
-                    "path/to/mcp-discord/build/index.js"
-                ],
-                "env": {
-                    "DISCORD_TOKEN": "your_discord_bot_token"
-                }
-             }
-         }
-    }
-    ```
+The upstream project is distributed via Smithery. **Do not use the hosted variant** — it requires handing the Discord bot token to a third party. Always self-host this server inside your own environment.
 
-## Tools Documentation
+## Threat model and known limits
 
-### Basic Functions
-
-- `discord_login`: Login to Discord
-- `discord_send`: Send a message to a specified channel
-- `discord_get_server_info`: Get Discord server information
-
-### Channel Management
-
-- `discord_create_text_channel`: Create a text channel
-- `discord_delete_channel`: Delete a channel
-
-### Forum Functions
-
-- `discord_get_forum_channels`: Get a list of forum channels
-- `discord_create_forum_post`: Create a forum post
-- `discord_get_forum_post`: Get a forum post
-- `discord_reply_to_forum`: Reply to a forum post
-- `discord_delete_forum_post`: Delete a forum post
-
-### Messages and Reactions
-
-- `discord_read_messages`: Read channel messages
-- `discord_add_reaction`: Add a reaction to a message
-- `discord_add_multiple_reactions`: Add multiple reactions to a message
-- `discord_remove_reaction`: Remove a reaction from a message
-- `discord_delete_message`: Delete a specific message from a channel
-
-### Webhook Management
-
-- `discord_create_webhook`: Creates a new webhook for a Discord channel
-- `discord_send_webhook_message`: Sends a message to a Discord channel using a webhook
-- `discord_edit_webhook`: Edits an existing webhook for a Discord channel
-- `discord_delete_webhook`: Deletes an existing webhook for a Discord channel
+- The MCP layer enforces the allow-list, but **the Discord bot's own permissions are the real backstop**. Configure both.
+- A coerced LLM can still spam read calls within the allow-list (rate-limited by Discord). There is no per-tool rate limit at the MCP layer yet.
+- Returned message content is raw user input. It is **not** sanitized for prompt-injection-resistant rendering; the calling LLM is responsible for treating it as untrusted data.
+- This server has no audit log. If you need one for compliance, add it on the calling side or wrap the MCP transport.
+- Discord ToS, Developer Terms, and applicable data-protection law (GDPR, CCPA, etc.) apply to whatever you do with the content this server returns. The license of this software does not grant you any rights against Discord or its users.
 
 ## Development
 
 ```bash
-# Development mode
-npm run dev
+npm run dev        # ts-node, no build step
+npm run build      # tsc -> build/
+npm run audit      # npm audit, fail on moderate+
 ```
 
 ## License
 
-[MIT License](https://github.com/barryyip0625/mcp-discord?tab=MIT-1-ov-file)
+MIT. Original copyright belongs to `barryyip0625` (upstream author). See [LICENSE](LICENSE).
