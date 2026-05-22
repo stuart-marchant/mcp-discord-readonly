@@ -111,6 +111,12 @@ npm run build      # tsc -> build/
 npm run audit      # npm audit, fail on moderate+
 ```
 
+### Self-test loop
+
+This project ships a `.mcp.json` at the repo root so a Claude Code session running inside the project can call its own MCP tools as part of the dev loop. Export the env vars listed inside (the values written as `${VAR}`), then run Claude Code from this directory. The `discord-readonly-dev` entry will be available; reconnect it via `/mcp` after each `npm run build` to pick up changes.
+
+See [`docs/HANDOFF-mcp-dev-dogfood.md`](docs/HANDOFF-mcp-dev-dogfood.md) for the full pattern, including the secret-safety rule and the limits (no hot reload, no live external state without credentials).
+
 ## License
 
 MIT. Original copyright belongs to `barryyip0625` (upstream author). See [LICENSE](LICENSE).
