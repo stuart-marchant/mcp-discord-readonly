@@ -11,6 +11,11 @@ yarn-error.log
 .env.test.local
 .env.production.local
 
+# MCP config: the project ships .mcp.json (vetted, no hardcoded secrets, ${VAR} only).
+# Per-developer overrides go in .mcp.local.json, which stays out of git.
+!.mcp.json
+.mcp.local.json
+
 # Build Output
 dist/
 build/

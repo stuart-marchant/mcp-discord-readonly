@@ -1,0 +1,14 @@
+{
+  "$comment": "Project-scoped MCP config so Claude Code can call this server while developing it. After 'npm run build', use /mcp to reconnect and pick up changes. Secrets come from the user's shell environment via ${VAR} interpolation -- never hardcode them here. See docs/HANDOFF-mcp-dev-dogfood.md.",
+  "mcpServers": {
+    "discord-readonly-dev": {
+      "command": "node",
+      "args": ["build/index.js"],
+      "env": {
+        "DISCORD_TOKEN": "${DISCORD_TOKEN}",
+        "DISCORD_ALLOWED_GUILDS": "${DISCORD_ALLOWED_GUILDS}",
+        "DISCORD_ALLOWED_CHANNELS": "${DISCORD_ALLOWED_CHANNELS}"
+      }
+    }
+  }
+}
