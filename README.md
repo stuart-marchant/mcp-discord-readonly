@@ -67,6 +67,8 @@ A guild allow-list permits reads of any channel/thread inside that guild. A chan
 
 ## Install / run
 
+Requires Node.js **22.23.4+, 24.22.1+ or 26.12.1+** (the October 2026 security releases, which fix the Brotli RCE CVE-2026-111497 and include Node's CA-certificate update for the eMudhra intermediate CA compromise). Check with `node --version`.
+
 ```bash
 git clone git@github.com:stuart-marchant/mcp-discord-readonly.git
 cd mcp-discord-readonly
